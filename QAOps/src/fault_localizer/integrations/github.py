@@ -80,27 +80,28 @@ class GitHubClient:
                 # 1. Clone
                 subprocess.run(
                     ["git", "clone", "--branch", base_branch, clone_url, tmpdir],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    check=True, capture_output=True, text=True
                 )
 
                 # 2. Configure Git User (if not set globally)
-                subprocess.run(["git", "config", "user.email", "agent@intelligentops.ai"], cwd=tmpdir, check=True)
-                subprocess.run(["git", "config", "user.name", "QAOps Agent"], cwd=tmpdir, check=True)
+                subprocess.run(["git", "config", "user.email", "agent@intelligentops.ai"], cwd=tmpdir, check=True, capture_output=True, text=True)
+                subprocess.run(["git", "config", "user.name", "QAOps Agent"], cwd=tmpdir, check=True, capture_output=True, text=True)
 
                 # 3. Checkout new branch
                 print(f"      [Git] Creating branch '{revert_branch_name}'...")
-                subprocess.run(["git", "checkout", "-b", revert_branch_name], cwd=tmpdir, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(["git", "checkout", "-b", revert_branch_name], cwd=tmpdir, check=True, capture_output=True, text=True)
                 
                 # 4. Revert commit
                 print(f"      [Git] Reverting commit {commit_sha[:7]}...")
-                subprocess.run(["git", "revert", "--no-edit", commit_sha], cwd=tmpdir, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(["git", "revert", "--no-edit", commit_sha], cwd=tmpdir, check=True, capture_output=True, text=True)
                 
-                # 5. Push
+                # 5. Push (force push in case branch already exists from previous run)
                 print(f"      [Git] Pushing branch to origin...")
-                subprocess.run(["git", "push", "origin", revert_branch_name], cwd=tmpdir, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.run(["git", "push", "-f", "origin", revert_branch_name], cwd=tmpdir, check=True, capture_output=True, text=True)
                 
             except subprocess.CalledProcessError as e:
-                print(f"      [Error] Git operation failed: {e}")
+                print(f"      [Error] Git operation failed. Command: {e.cmd}")
+                print(f"      [Error] Git Stderr: {e.stderr}")
                 return None
 
         # 6. Create PR via GitHub API
