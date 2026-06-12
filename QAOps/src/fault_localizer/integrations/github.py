@@ -102,6 +102,20 @@ class GitHubClient:
             except subprocess.CalledProcessError as e:
                 print(f"      [Error] Git operation failed. Command: {e.cmd}")
                 print(f"      [Error] Git Stderr: {e.stderr}")
+                
+                # If the revert failed due to conflicts, create a GitHub Issue to notify the team
+                if "git', 'revert" in str(e.cmd):
+                    print("      [Info] Revert failed (likely due to merge conflicts). Creating an Issue instead...")
+                    subprocess.run(["git", "revert", "--abort"], cwd=tmpdir, capture_output=True)
+                    try:
+                        issue = self.repo.create_issue(
+                            title=f"⚠️ Manual Revert Required: {commit_sha[:7]}",
+                            body=f"The QAOps Agent identified commit `{commit_sha}` as the root cause of the recent CI/CD failure.\n\nHowever, the agent could not automatically revert it due to a **Merge Conflict**.\n\nPlease manually resolve the conflicts and revert the commit.\n\n<details><summary>Git Error Output</summary>\n\n```text\n{e.stderr}\n```\n</details>"
+                        )
+                        print(f"      [GitHub] Created issue for manual intervention: {issue.html_url}")
+                    except Exception as issue_e:
+                        print(f"      [Error] Failed to create GitHub Issue: {issue_e}")
+                        
                 return None
 
         # 6. Create PR via GitHub API

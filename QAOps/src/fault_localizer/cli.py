@@ -66,7 +66,7 @@ def main():
         
     top_suspect = result.get('top_suspect')
     
-    if top_suspect and top_suspect.get('score', 0) > 0:
+    if top_suspect and top_suspect.get('score', 0) >= 50:
         print(f"🚨 HIGHEST PROBABILITY COMMIT: {top_suspect['sha'][:7]}")
         print(f"Author: {top_suspect['author']}")
         print(f"Date: {top_suspect['date']}")
