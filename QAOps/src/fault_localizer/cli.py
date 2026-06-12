@@ -13,6 +13,7 @@ def main():
     
     parser.add_argument("--model-provider", default=settings.MODEL_PROVIDER, choices=["google", "openai", "openrouter"], help="Model provider (google, openai, or openrouter)")
     parser.add_argument("--model-name", default=settings.MODEL_NAME, help="Model name to use")
+    parser.add_argument("--auto-revert", action="store_true", help="Run autonomously without interactive prompts (for CI/CD)")
     
     args = parser.parse_args()
 
@@ -75,23 +76,31 @@ def main():
         
         print("\n--- ACTION ---")
         
-        while True:
-            choice = input(f"Do you want the agent to automatically revert commit {top_suspect['sha'][:7]} and open a PR? [y/N]: ").strip().lower()
-            if choice in ['y', 'yes']:
-                print("\nInitiating automated revert process...")
-                revert_pr_url = gh_client.create_revert_pr(top_suspect['sha'])
-                if revert_pr_url:
-                    print(f"\n✅ Success! A Revert PR has been automatically created here:\n  {revert_pr_url}")
-                else:
-                    print("\n❌ Failed to create Revert PR automatically.")
-                break
-            elif choice in ['n', 'no', '']:
-                print("\nSkipping automatic revert.")
-                print("Suggested local Revert command if you want to do it manually:")
-                print(f"  git revert {top_suspect['sha']}")
-                break
+        if args.auto_revert:
+            print("\n[CI Mode] Automatically initiating revert process...")
+            revert_pr_url = gh_client.create_revert_pr(top_suspect['sha'])
+            if revert_pr_url:
+                print(f"\n✅ Success! A Revert PR has been automatically created here:\n  {revert_pr_url}")
             else:
-                print("Invalid input. Please enter 'y' or 'n'.")
+                print("\n❌ Failed to create Revert PR automatically.")
+        else:
+            while True:
+                choice = input(f"Do you want the agent to automatically revert commit {top_suspect['sha'][:7]} and open a PR? [y/N]: ").strip().lower()
+                if choice in ['y', 'yes']:
+                    print("\nInitiating automated revert process...")
+                    revert_pr_url = gh_client.create_revert_pr(top_suspect['sha'])
+                    if revert_pr_url:
+                        print(f"\n✅ Success! A Revert PR has been automatically created here:\n  {revert_pr_url}")
+                    else:
+                        print("\n❌ Failed to create Revert PR automatically.")
+                    break
+                elif choice in ['n', 'no', '']:
+                    print("\nSkipping automatic revert.")
+                    print("Suggested local Revert command if you want to do it manually:")
+                    print(f"  git revert {top_suspect['sha']}")
+                    break
+                else:
+                    print("Invalid input. Please enter 'y' or 'n'.")
     else:
         print("✅ No high-probability suspect commits found. The failure might be environmental or flaky.")
         

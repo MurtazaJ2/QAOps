@@ -1,0 +1,43 @@
+name: "QAOps Fault Localizer"
+description: "Intelligently identifies the commit that caused a CI failure and automatically creates a Revert PR."
+author: "IntelligentOps"
+
+inputs:
+  repo:
+    description: "The target repository in the format owner/repo"
+    required: true
+  base:
+    description: "The base commit SHA (the last passing commit)"
+    required: true
+  head:
+    description: "The head commit SHA (the first failing commit)"
+    required: true
+  log_file:
+    description: "Path to the failure log file to analyze"
+    required: true
+  github_token:
+    description: "GitHub Token for cloning and opening PRs"
+    required: true
+    default: ${{ github.token }}
+  model_provider:
+    description: "Model provider to use (google, openai, or openrouter)"
+    required: false
+    default: "openrouter"
+  model_name:
+    description: "Model name to use for analysis"
+    required: false
+    default: "openai/gpt-oss-120b:free"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - ${{ inputs.repo }}
+    - ${{ inputs.base }}
+    - ${{ inputs.head }}
+    - ${{ inputs.log_file }}
+    - ${{ inputs.model_provider }}
+    - ${{ inputs.model_name }}
+  env:
+    GITHUB_TOKEN: ${{ inputs.github_token }}
+    # Users must map OPENROUTER_API_KEY / GOOGLE_API_KEY via env in their workflow
