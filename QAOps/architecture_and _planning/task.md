@@ -1,0 +1,22 @@
+- [x] **Phase 1: Project Setup**
+  - [x] Initialize virtual environment
+  - [x] Create `requirements.txt` (`langchain`, `langgraph`, `google-generativeai`, `langchain-google-genai`, `PyGithub`, `python-dotenv`)
+  - [x] Create basic directory structure (`src/`, `tests/`)
+- [x] **Phase 2: Data Ingestion Module**
+  - [x] Implement `github_client.py` to interact with GitHub API (fetch commits, diffs, PRs)
+  - [x] Implement `log_parser.py` (generic log ingestion interface)
+- [x] **Phase 3: Semantic Analysis Engine (LangGraph)**
+  - [x] Set up Gemini LLM integration via LangChain
+  - [x] Implement Graph State definition
+  - [x] Create `Contextualize Node` (summarize failure logs)
+  - [x] Create `Analyze & Score Node` (compare commit diffs against failure context)
+  - [x] Create `Synthesize Node` (identify top suspect)
+  - [x] Define and compile the LangGraph workflow
+- [x] **Phase 4: Action & Reporting Module**
+  - [x] Implement reporting logic to summarize findings
+  - [x] Implement Revert PR generation logic (with human-in-the-loop mock)
+- [x] **Phase 5: Entry Point & E2E Flow**
+  - [x] Create `main.py` orchestrator
+- [x] **Phase 6: Testing**
+  - [x] Write unit tests for ingestion, graph nodes, and formatting
+  - [x] Run an E2E mocked test

@@ -1,0 +1,3 @@
+[console_scripts]
+fault-localizer = fault_localizer.cli:main
+
