@@ -27,6 +27,15 @@ inputs:
     description: "Model name to use for analysis"
     required: false
     default: "openai/gpt-oss-120b:free"
+  openrouter_api_key:
+    description: "OpenRouter API Key"
+    required: false
+  google_api_key:
+    description: "Google Gemini API Key"
+    required: false
+  openai_api_key:
+    description: "OpenAI API Key"
+    required: false
 
 runs:
   using: "docker"
@@ -40,4 +49,6 @@ runs:
     - ${{ inputs.model_name }}
   env:
     GITHUB_TOKEN: ${{ inputs.github_token }}
-    # Users must map OPENROUTER_API_KEY / GOOGLE_API_KEY via env in their workflow
+    OPENROUTER_API_KEY: ${{ inputs.openrouter_api_key }}
+    GOOGLE_API_KEY: ${{ inputs.google_api_key }}
+    OPENAI_API_KEY: ${{ inputs.openai_api_key }}
