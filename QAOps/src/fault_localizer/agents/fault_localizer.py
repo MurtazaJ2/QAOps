@@ -39,6 +39,7 @@ class QAOpsAgent:
             api_key = settings.OPENROUTER_API_KEY
             if not api_key:
                 raise ValueError("OPENROUTER_API_KEY is missing in configuration.")
+            print(f"   [DEBUG] OpenRouter Key Length: {len(api_key)}, Starts with: {api_key[:8]}...")
             self.llm = ChatOpenAI(
                 model=model_name,
                 api_key=api_key,
