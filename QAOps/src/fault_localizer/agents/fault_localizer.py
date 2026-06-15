@@ -13,7 +13,7 @@ class AgentState(TypedDict):
     raw_failure_log: str
     summarized_failure: str
     commits: List[Dict[str, Any]]
-    top_suspect: Dict[str, Any]
+    top_suspects: List[Dict[str, Any]]
 
 # Pydantic models for structured output
 class CommitScore(BaseModel):
@@ -134,17 +134,22 @@ class QAOpsAgent:
         return {"commits": scored_commits}
 
     def synthesize_results(self, state: AgentState):
-        """Identify the top suspect commit."""
+        """Identify all high-probability suspect commits."""
         print("-> Synthesizing Results...")
         commits = state['commits']
         
         if not commits:
-            return {"top_suspect": None}
+            return {"top_suspects": []}
             
-        # Find commit with highest score
-        top_commit = max(commits, key=lambda x: x.get('score', 0))
+        # Find all commits with score >= 50
+        suspects = [c for c in commits if c.get('score', 0) >= 50]
         
-        return {"top_suspect": top_commit}
+        # Sort them from newest to oldest based on index in original list, or score
+        # The original list is typically chronological or reverse-chronological from github. 
+        # We will sort by score descending for the report.
+        suspects.sort(key=lambda x: x.get('score', 0), reverse=True)
+        
+        return {"top_suspects": suspects}
 
     def run(self, raw_log: str, commits: List[Dict[str, Any]]):
         """Execute the LangGraph workflow."""
@@ -152,6 +157,6 @@ class QAOpsAgent:
             "raw_failure_log": raw_log,
             "summarized_failure": "",
             "commits": commits,
-            "top_suspect": {}
+            "top_suspects": []
         }
         return self.app.invoke(inputs)

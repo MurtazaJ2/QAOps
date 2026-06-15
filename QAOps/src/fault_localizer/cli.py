@@ -64,31 +64,35 @@ def main():
         print(f"[{commit['sha'][:7]}] Score: {commit.get('score', 0)}% | Author: {commit['author']}")
         print(f"Reasoning: {commit.get('reasoning', 'No reasoning provided')}\n")
         
-    top_suspect = result.get('top_suspect')
+    top_suspects = result.get('top_suspects', [])
     
-    if top_suspect and top_suspect.get('score', 0) >= 50:
-        print(f"🚨 HIGHEST PROBABILITY COMMIT: {top_suspect['sha'][:7]}")
-        print(f"Author: {top_suspect['author']}")
-        print(f"Date: {top_suspect['date']}")
-        print(f"Message: {top_suspect['message']}")
-        print(f"\nProbability Score: {top_suspect['score']}%")
-        print(f"Reasoning: {top_suspect['reasoning']}")
+    if top_suspects:
+        print(f"🚨 FOUND {len(top_suspects)} HIGH-PROBABILITY COMMIT(S):")
+        for suspect in top_suspects:
+            print(f"\n- Commit: {suspect['sha'][:7]}")
+            print(f"  Author: {suspect['author']}")
+            print(f"  Score:  {suspect['score']}%")
+            print(f"  Reason: {suspect['reasoning']}")
         
         print("\n--- ACTION ---")
         
+        # Extract SHAs
+        target_shas = [s['sha'] for s in top_suspects]
+        sha_str = ", ".join([s[:7] for s in target_shas])
+        
         if args.auto_revert:
-            print("\n[CI Mode] Automatically initiating revert process...")
-            revert_pr_url = gh_client.create_revert_pr(top_suspect['sha'])
+            print(f"\n[CI Mode] Automatically initiating revert process for {sha_str}...")
+            revert_pr_url = gh_client.create_revert_pr(target_shas)
             if revert_pr_url:
                 print(f"\n✅ Success! A Revert PR has been automatically created here:\n  {revert_pr_url}")
             else:
                 print("\n❌ Failed to create Revert PR automatically.")
         else:
             while True:
-                choice = input(f"Do you want the agent to automatically revert commit {top_suspect['sha'][:7]} and open a PR? [y/N]: ").strip().lower()
+                choice = input(f"Do you want the agent to automatically revert {sha_str} and open a PR? [y/N]: ").strip().lower()
                 if choice in ['y', 'yes']:
                     print("\nInitiating automated revert process...")
-                    revert_pr_url = gh_client.create_revert_pr(top_suspect['sha'])
+                    revert_pr_url = gh_client.create_revert_pr(target_shas)
                     if revert_pr_url:
                         print(f"\n✅ Success! A Revert PR has been automatically created here:\n  {revert_pr_url}")
                     else:
@@ -96,13 +100,11 @@ def main():
                     break
                 elif choice in ['n', 'no', '']:
                     print("\nSkipping automatic revert.")
-                    print("Suggested local Revert command if you want to do it manually:")
-                    print(f"  git revert {top_suspect['sha']}")
                     break
                 else:
                     print("Invalid input. Please enter 'y' or 'n'.")
     else:
-        print("✅ No high-probability suspect commits found. The failure might be environmental or flaky.")
+        print("✅ No high-probability suspect commits (>= 50%) found. The failure might be environmental or flaky.")
         
     print("="*50)
 

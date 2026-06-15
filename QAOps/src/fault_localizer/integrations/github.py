@@ -57,20 +57,25 @@ class GitHubClient:
             print(f"Error fetching commits: {e}")
             return []
 
-    def create_revert_pr(self, commit_sha: str, base_branch: str = None) -> str:
+    def create_revert_pr(self, commit_shas: List[str], base_branch: str = None) -> str:
         """
-        Creates a revert branch and a PR to revert a specific commit autonomously.
-        Returns the PR URL if successful.
+        Creates a new branch, reverts the specified commits, pushes, and opens a PR.
+        commit_shas should be ordered from newest to oldest for clean reverts.
+        Returns the PR URL or None if failed.
         """
-        import subprocess
-        import tempfile
-        import os
-
-        # Use the default branch of the repo
-        base_branch = self.repo.default_branch
-        revert_branch_name = f"revert-{commit_sha[:7]}"
+        if not commit_shas:
+            return None
+            
+        base_branch = base_branch or self.repo.default_branch
         
-        # Build clone URL with token
+        # Use the first SHA for the branch name, but indicate multiple
+        primary_sha = commit_shas[0][:7]
+        revert_branch_name = f"revert-multiple-{primary_sha}" if len(commit_shas) > 1 else f"revert-{primary_sha}"
+        
+        # We need to clone the repo locally to perform the revert and push
+        import tempfile
+        import subprocess
+        
         clone_url = f"https://x-access-token:{self.token}@github.com/{self.repo.full_name}.git"
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -91,9 +96,10 @@ class GitHubClient:
                 print(f"      [Git] Creating branch '{revert_branch_name}'...")
                 subprocess.run(["git", "checkout", "-b", revert_branch_name], cwd=tmpdir, check=True, capture_output=True, text=True)
                 
-                # 4. Revert commit
-                print(f"      [Git] Reverting commit {commit_sha[:7]}...")
-                subprocess.run(["git", "revert", "--no-edit", commit_sha], cwd=tmpdir, check=True, capture_output=True, text=True)
+                # 4. Revert commits sequentially
+                for sha in commit_shas:
+                    print(f"      [Git] Reverting commit {sha[:7]}...")
+                    subprocess.run(["git", "revert", "--no-edit", sha], cwd=tmpdir, check=True, capture_output=True, text=True)
                 
                 # 5. Push (force push in case branch already exists from previous run)
                 print(f"      [Git] Pushing branch to origin...")
@@ -108,9 +114,11 @@ class GitHubClient:
                     print("      [Info] Revert failed (likely due to merge conflicts). Creating an Issue instead...")
                     subprocess.run(["git", "revert", "--abort"], cwd=tmpdir, capture_output=True)
                     try:
+                        failed_sha = e.cmd[-1]
+                        sha_list_str = ", ".join([s[:7] for s in commit_shas])
                         issue = self.repo.create_issue(
-                            title=f"⚠️ Manual Revert Required: {commit_sha[:7]}",
-                            body=f"The QAOps Agent identified commit `{commit_sha}` as the root cause of the recent CI/CD failure.\n\nHowever, the agent could not automatically revert it due to a **Merge Conflict**.\n\nPlease manually resolve the conflicts and revert the commit.\n\n<details><summary>Git Error Output</summary>\n\n```text\n{e.stderr}\n```\n</details>"
+                            title=f"⚠️ Manual Revert Required: Conflict in {failed_sha[:7]}",
+                            body=f"The QAOps Agent identified the following commits as root causes of the recent CI/CD failure: `{sha_list_str}`\n\nHowever, the agent could not automatically revert `{failed_sha}` due to a **Merge Conflict**.\n\nPlease manually resolve the conflicts and revert the commits.\n\n<details><summary>Git Error Output</summary>\n\n```text\n{e.stderr}\n```\n</details>"
                         )
                         print(f"      [GitHub] Created issue for manual intervention: {issue.html_url}")
                     except Exception as issue_e:
@@ -121,13 +129,22 @@ class GitHubClient:
         # 6. Create PR via GitHub API
         print(f"      [GitHub] Opening Pull Request...")
         try:
+            sha_list_str = ", ".join([f"`{s[:7]}`" for s in commit_shas])
+            pr_title = f"Revert Multiple Faulty Commits ({sha_list_str})" if len(commit_shas) > 1 else f"Revert commit {primary_sha}"
+            pr_body = (
+                f"🤖 **Automated Revert PR**\n\n"
+                f"The QAOps Agent has detected that the following commits introduced a CI/CD failure:\n"
+                f"{sha_list_str}\n\n"
+                f"This PR safely reverts them to restore the pipeline to a green state."
+            )
+            
             pr = self.repo.create_pull(
-                title=f"Revert: {commit_sha[:7]}",
-                body=f"Automated Revert by QAOps Agent.\n\nThis PR reverts commit `{commit_sha}` as it was identified to cause test failures.",
+                title=pr_title,
+                body=pr_body,
                 head=revert_branch_name,
                 base=base_branch
             )
             return pr.html_url
         except Exception as e:
-            print(f"      [Error] Failed to create Pull Request via API: {e}")
+            print(f"      [Error] Failed to create Pull Request: {e}")
             return None
